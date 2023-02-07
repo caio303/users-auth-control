@@ -1,9 +1,6 @@
-package br.caio303.RESTapi.controllers;
+package br.caio303.users_auth_control.controllers;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 import javax.validation.Valid;
 
@@ -22,13 +19,16 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import br.caio303.RESTapi.dtos.LoginCredentialsDto;
-import br.caio303.RESTapi.dtos.LoginResponseDto;
-import br.caio303.RESTapi.dtos.UpdateCredentialsDto;
-import br.caio303.RESTapi.dtos.UserDto;
-import br.caio303.RESTapi.models.UserModel;
-import br.caio303.RESTapi.security.JWTUtil;
-import br.caio303.RESTapi.services.UserService;
+import br.caio303.users_auth_control.dtos.LoginCredentialsDto;
+import br.caio303.users_auth_control.dtos.LoginResponseDto;
+import br.caio303.users_auth_control.dtos.UpdateCredentialsDto;
+import br.caio303.users_auth_control.dtos.UserDto;
+import br.caio303.users_auth_control.exceptions.StatusCodeException;
+import br.caio303.users_auth_control.exceptions.TokenNotValidException;
+import br.caio303.users_auth_control.models.UserModel;
+import br.caio303.users_auth_control.services.UserService;
+import br.caio303.users_auth_control.utils.HashUtils;
+import br.caio303.users_auth_control.utils.JWTUtil;
 import io.swagger.annotations.ApiOperation;
 
 @RestController
@@ -38,9 +38,6 @@ public class UserController {
 
 	@Autowired
 	private UserService userService;
-	
-	@Autowired
-	private JWTUtil jwtUtil;
 
 	@ApiOperation(value = "Register a user in the database.")
 	@PostMapping(path = "/cadastro")
@@ -55,25 +52,17 @@ public class UserController {
 
 	@ApiOperation(value = "Attempt to sign in, if successful returns JWT token.")
 	@PostMapping(path = "/login")
-	public ResponseEntity<Object> login(@RequestBody @Valid LoginCredentialsDto credentialsDto)
-			throws NoSuchAlgorithmException {
-		if (!userService.existsByCpf(credentialsDto.getCpf())) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Exception("Invalid Credentials."));
-		}
+	public ResponseEntity<Object> login(@RequestBody @Valid LoginCredentialsDto credentialsDto) {
 
 		UserModel user = userService.findByCpf(credentialsDto.getCpf());
-
-		MessageDigest md = MessageDigest.getInstance("SHA-256");
-		byte[] senhaRecebidaEmBytesEncriptada = 
-				md.digest(credentialsDto.getSenha().getBytes(StandardCharsets.UTF_8));
-		String senhaRecebidaEncriptada = new String(senhaRecebidaEmBytesEncriptada, StandardCharsets.UTF_8);
+		String senhaRecebidaEncriptada = HashUtils.toSha256(credentialsDto.getSenha());
 
 		if (!user.getSenha().equals(senhaRecebidaEncriptada)) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Invalid Credentials");
 		}
 		
 		LoginResponseDto responseModel = new LoginResponseDto(user);		
-		responseModel.setToken("Bearer " + jwtUtil.generateToken(user.getCpf()));
+		responseModel.setToken("Bearer " + JWTUtil.generateToken(user.getCpf()));
 		
 		return ResponseEntity.status(HttpStatus.OK)
 				.body(responseModel);
@@ -82,17 +71,15 @@ public class UserController {
 	@ApiOperation(value = "Validates request token, and returns a user by its cpf.")
 	@GetMapping("/{cpf}")
 	public ResponseEntity<Object> showUser(@PathVariable String cpf, @RequestHeader("Authentication") String authHeader)
-			throws Exception {
-		if (!userService.existsByCpf(cpf))
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new IOException("User not found."));
+			throws StatusCodeException {
 
-		if (authHeader == null || !jwtUtil.isTokenValid(authHeader.substring(7)))
+		if (authHeader == null || !JWTUtil.isTokenValid(authHeader.substring(7)))
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new IOException("Unauthorized request."));
 
 		String token = authHeader.substring(7);
 		UserModel user = userService.findByCpf(cpf);
 		
-		if(!jwtUtil.getSubject(token).equals(user.getCpf()))
+		if(!JWTUtil.getSubject(token).equals(user.getCpf()))
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IOException("Unauthorized request."));
 			
 		return ResponseEntity.ok(user);
@@ -100,20 +87,16 @@ public class UserController {
 	
 	@ApiOperation(value = "Validates request token, and deletes a user by its cpf.")
 	@DeleteMapping("/{cpf}")
-	public ResponseEntity<Object> deleteUser(@PathVariable String cpf, @RequestHeader("Authentication") String authHeader)
-			throws Exception {
-		
-		if (!userService.existsByCpf(cpf))
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new IOException("User not found."));
+	public ResponseEntity<Object> deleteUser(@PathVariable String cpf, @RequestHeader("Authentication") String authHeader) throws StatusCodeException {
 
-		JWTUtil jwtUtil = new JWTUtil();
-		if (authHeader == null || !jwtUtil.isTokenValid(authHeader.substring(7)))
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IOException("Unauthorized request."));
+		// TODO: Add interceptor for that
+		if (authHeader == null || !JWTUtil.isTokenValid(authHeader.substring(7)))
+			throw new TokenNotValidException();
 
 		String token = authHeader.substring(7);
 		UserModel user = userService.findByCpf(cpf);
 		
-		if(!jwtUtil.getSubject(token).equals(user.getCpf()))
+		if(!JWTUtil.getSubject(token).equals(user.getCpf()))
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IOException("Unauthorized request."));
 		
 		userService.deleteByCpf(user.getCpf());
@@ -136,10 +119,10 @@ public class UserController {
 		
 		String token = authHeader.substring(7);
 
-		if (authHeader == null || !jwtUtil.isTokenValid(token))
+		if (authHeader == null || !JWTUtil.isTokenValid(token))
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IOException("Unauthorized request."));
 		
-		if(!jwtUtil.getSubject(token).equals(user.getCpf()))
+		if(!JWTUtil.getSubject(token).equals(user.getCpf()))
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new IOException("Unauthorized request."));
 		
 		var updatedUser = new UserModel();

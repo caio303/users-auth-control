@@ -1,29 +1,24 @@
-package br.caio303.RESTapi.security;
+package br.caio303.users_auth_control.utils;
 
 import java.util.Date;
-
-import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 
-@Component
 public class JWTUtil {
-
-	private String secret = "My007TopSecureJWTSign";
+	private static final String SECRET = "My007TopSecureJWTSign";
+	private static final Long EXPIRATION = (long) 300000;
 	
-	private Long expiration = (long) 300000;
-	
-	public String generateToken(String cpf) {
+	public static String generateToken(String cpf) {
 		return Jwts.builder()
 					.setSubject(cpf)
-					.setExpiration(new Date(System.currentTimeMillis() + this.expiration))
-					.signWith(SignatureAlgorithm.HS512, secret.getBytes())
+					.setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
+					.signWith(SignatureAlgorithm.HS512, SECRET.getBytes())
 					.compact();
 	}
 	
-	public boolean isTokenValid(String token) {
+	public static boolean isTokenValid(String token) {
 		Claims claims = getClaims(token);
 		if(claims != null) {
 			String username = claims.getSubject();
@@ -36,7 +31,7 @@ public class JWTUtil {
 		return false;
 	}
 	
-	public String getSubject(String token) {
+	public static String getSubject(String token) {
 		Claims claims = getClaims(token);
 		if(claims != null) {
 			return claims.getSubject();
@@ -44,9 +39,9 @@ public class JWTUtil {
 		return null;
 	}
 
-	private Claims getClaims(String token) {
+	private static Claims getClaims(String token) {
 		try {
-			return Jwts.parser().setSigningKey(secret.getBytes()).parseClaimsJws(token).getBody();
+			return Jwts.parser().setSigningKey(SECRET.getBytes()).parseClaimsJws(token).getBody();
 		}catch(Exception e) {
 			return null;
 		}

@@ -1,7 +1,5 @@
-package br.caio303.RESTapi.services;
+package br.caio303.users_auth_control.services;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import javax.transaction.Transactional;
@@ -9,8 +7,11 @@ import javax.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import br.caio303.RESTapi.models.UserModel;
-import br.caio303.RESTapi.repositories.UserRepository;
+import br.caio303.users_auth_control.exceptions.StatusCodeException;
+import br.caio303.users_auth_control.exceptions.UserNotFoundException;
+import br.caio303.users_auth_control.models.UserModel;
+import br.caio303.users_auth_control.repositories.UserRepository;
+import br.caio303.users_auth_control.utils.HashUtils;
 
 @Service
 public class UserService {
@@ -20,11 +21,7 @@ public class UserService {
 	
 	@Transactional
 	public UserModel save(UserModel userModel) throws NoSuchAlgorithmException {
-		MessageDigest md = MessageDigest.getInstance("SHA-256");
-		byte[] senhaEmBytes = userModel.getSenha().getBytes(StandardCharsets.UTF_8);
-		byte[] senhaEncriptada = md.digest(senhaEmBytes);
-		userModel.setSenha(new String(senhaEncriptada, StandardCharsets.UTF_8));
-		
+		userModel.setSenha(HashUtils.toSha256(userModel.getSenha()));		
 		return userRepository.save(userModel);
 	}
 	
@@ -37,11 +34,12 @@ public class UserService {
 	}
 	
 	@Transactional
-	public void deleteByCpf(String cpf) {
+	public void deleteByCpf(String cpf) throws StatusCodeException {
 		var user = userRepository.findByCpf(cpf);
-		if(user != null) {
-			userRepository.deleteById(user.getId());
-		}
+		if(user == null)
+			throw new UserNotFoundException(cpf);
+		
+		userRepository.deleteById(user.getId());
 	}
 
 }

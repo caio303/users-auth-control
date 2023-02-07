@@ -1,4 +1,4 @@
-package br.caio303.RESTapi.config;
+package br.caio303.users_auth_control.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

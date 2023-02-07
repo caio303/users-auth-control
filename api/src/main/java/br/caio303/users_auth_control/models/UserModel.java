@@ -1,4 +1,4 @@
-package br.caio303.RESTapi.models;
+package br.caio303.users_auth_control.models;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -13,7 +13,7 @@ import javax.persistence.TemporalType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import br.caio303.RESTapi.dtos.UserDto;
+import br.caio303.users_auth_control.dtos.UserDto;
 
 @Entity(name = "user")
 public class UserModel implements Serializable {

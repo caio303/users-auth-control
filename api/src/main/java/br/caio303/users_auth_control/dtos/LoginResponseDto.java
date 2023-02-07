@@ -1,6 +1,6 @@
-package br.caio303.RESTapi.dtos;
+package br.caio303.users_auth_control.dtos;
 
-import br.caio303.RESTapi.models.UserModel;
+import br.caio303.users_auth_control.models.UserModel;
 
 public class LoginResponseDto {
 	private UserModel authenticatedUser;

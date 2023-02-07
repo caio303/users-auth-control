@@ -1,4 +1,4 @@
-package br.caio303.RESTapi.dtos;
+package br.caio303.users_auth_control.dtos;
 
 import java.io.Serializable;
 import java.util.Date;
